@@ -1,4 +1,4 @@
-name: site_suvery
+name: site_survey
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -31,20 +31,40 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  flutter_riverpod: ^2.5.1
+  drift: ^2.16.0
+  sqlite3_flutter_libs: ^0.5.21
+  path_provider: ^2.1.3
+  path: ^1.9.0
+  dio: ^5.4.3+1
+  go_router: ^14.1.4
+  flutter_secure_storage: ^9.2.1
+  local_auth: ^2.2.0
+  connectivity_plus: ^6.0.3
+  uuid: ^4.4.0
+  geolocator: ^11.0.1
+  camera: ^0.10.5+9
+  permission_handler: ^11.3.1
+  flutter_image_compress: ^8.0.0
+  image: ^4.1.7
+  intl: ^0.19.0
+  workmanager: ^0.5.2
+  firebase_core: ^3.1.1
+  firebase_crashlytics: ^4.0.1
+  sentry_flutter: ^8.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
-  flutter_lints: ^6.0.0
+  flutter_lints: ^3.0.0
+  build_runner: ^2.4.9
+  drift_dev: ^2.16.0
+  swagger_dart_code_generator: ^2.14.0
+  riverpod_generator: ^2.4.0
+  riverpod_lint: ^2.3.10
+  custom_lint: ^0.6.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

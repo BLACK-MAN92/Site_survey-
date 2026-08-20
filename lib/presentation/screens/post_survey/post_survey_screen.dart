@@ -37,8 +37,8 @@ class PostSurveyScreen extends ConsumerStatefulWidget {
   final Map<String, bool> preSurveyScope;
 
   const PostSurveyScreen({
-    super.key, 
-    required this.siteId, 
+    super.key,
+    required this.siteId,
     required this.preSurveyScope,
   });
 
@@ -48,14 +48,22 @@ class PostSurveyScreen extends ConsumerStatefulWidget {
 
 class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
   int _currentStep = 0;
-  List<WorkItemState> _items = [];
+  final List<WorkItemState> _items = [];
 
   final Map<String, String> _labels = {
-    'janitorial': 'Janitorial', 'granite': 'Granite', 'concrete_resurfacing': 'Concrete Resurfacing',
-    'palisade_gate': 'Palisade & Gate', 'razor_coil': 'Razor Coil', 'awl': 'AWL',
-    'security_light': 'Security Light', 'tank_painting': 'Tank Painting', 'sg_house_repair': 'SG House Repair',
-    'fire_extinguisher': 'Fire Extinguisher', 'shelter_repair': 'Shelter Repair',
-    'cable_management': 'Cable Management', 'waste_disposal': 'Waste Disposal',
+    'janitorial': 'Janitorial',
+    'granite': 'Granite',
+    'concrete_resurfacing': 'Concrete Resurfacing',
+    'palisade_gate': 'Palisade & Gate',
+    'razor_coil': 'Razor Coil',
+    'awl': 'AWL',
+    'security_light': 'Security Light',
+    'tank_painting': 'Tank Painting',
+    'sg_house_repair': 'SG House Repair',
+    'fire_extinguisher': 'Fire Extinguisher',
+    'shelter_repair': 'Shelter Repair',
+    'cable_management': 'Cable Management',
+    'waste_disposal': 'Waste Disposal',
   };
 
   @override
@@ -110,11 +118,7 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
         onStepCancel: () {
           if (_currentStep > 0) setState(() => _currentStep--);
         },
-        steps: [
-          _buildWorkItemsStep(),
-          _buildPhotosStep(),
-          _buildReviewStep(),
-        ],
+        steps: [_buildWorkItemsStep(), _buildPhotosStep(), _buildReviewStep()],
       ),
     );
   }
@@ -134,7 +138,7 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
                 TextButton(
                   onPressed: () => _addUnplannedItem(item.key),
                   child: const Text('Add as Unplanned Work'),
-                )
+                ),
               ],
             );
           }
@@ -145,26 +149,36 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_labels[item.key]!, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  if (item.isUnplanned) const Text('VARIATION (Unplanned)', style: TextStyle(color: Colors.orange)),
+                  Text(
+                    _labels[item.key]!,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  if (item.isUnplanned)
+                    const Text(
+                      'VARIATION (Unplanned)',
+                      style: TextStyle(color: Colors.orange),
+                    ),
                   SegmentedButton<String>(
                     segments: const [
                       ButtonSegment(value: 'WIP', label: Text('WIP')),
                       ButtonSegment(value: 'Closed', label: Text('Closed')),
                     ],
                     selected: {item.progress ?? 'WIP'},
-                    onSelectionChanged: (set) => _updateProgress(item.key, set.first),
+                    onSelectionChanged: (set) =>
+                        _updateProgress(item.key, set.first),
                   ),
                   if (item.key == 'security_light' && item.progress == 'Closed')
                     TextField(
-                      decoration: const InputDecoration(labelText: 'Qty Replaced (Required)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Qty Replaced (Required)',
+                      ),
                       keyboardType: TextInputType.number,
                       onChanged: (val) {
                         final qty = int.tryParse(val);
                         final idx = _items.indexWhere((i) => i.key == item.key);
                         _items[idx] = _items[idx].copyWith(qtyReplaced: qty);
                       },
-                    )
+                    ),
                 ],
               ),
             ),
@@ -180,7 +194,8 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
       isActive: _currentStep >= 1,
       content: Semantics(
         button: true,
-        label: 'Open camera with before-photo overlay to capture matching angle. Minimum of 5 required.',
+        label:
+            'Open camera with before-photo overlay to capture matching angle. Minimum of 5 required.',
         child: ElevatedButton(
           onPressed: () {
             // Navigate to camera with ghost overlay feature
@@ -199,12 +214,16 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Derived Overall Status: $overallStatus', 
-               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(
+            'Derived Overall Status: $overallStatus',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 16),
           if (overallStatus == 'WIP')
-            const Text('Note: Status coerced to WIP because not all required items are Closed.', 
-                       style: TextStyle(color: Colors.red)),
+            const Text(
+              'Note: Status coerced to WIP because not all required items are Closed.',
+              style: TextStyle(color: Colors.red),
+            ),
         ],
       ),
     );

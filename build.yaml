@@ -1,0 +1,9 @@
+targets:
+  $default:
+    builders:
+      drift_dev|drift_dev:
+        enabled: true
+      riverpod_generator:
+        enabled: true
+      swagger_dart_code_generator:
+        enabled: false

@@ -6,7 +6,7 @@ import 'core/services/background_sync.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize error reporting
   await ErrorReportingService.initialize();
 
@@ -15,11 +15,7 @@ void main() async {
   await bgSync.initialize();
   bgSync.registerPeriodicSync();
 
-  runApp(
-    const ProviderScope(
-      child: SiteSurveyApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: SiteSurveyApp()));
 }
 
 class SiteSurveyApp extends ConsumerWidget {
@@ -27,6 +23,8 @@ class SiteSurveyApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(routerProvider);
+
     return MaterialApp.router(
       title: 'Site Survey',
       debugShowCheckedModeBanner: false,

@@ -1,6 +1,5 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:math' as math;
 
 class LocationService {
   // Returns true if permission is granted
@@ -15,7 +14,7 @@ class LocationService {
 
   Future<Position?> getCurrentPosition() async {
     if (!await hasPermission()) return null;
-    
+
     // According to PRD, we require accuracy <= 50m. We use high accuracy.
     return await Geolocator.getCurrentPosition(
       desiredAccuracy: LocationAccuracy.high,

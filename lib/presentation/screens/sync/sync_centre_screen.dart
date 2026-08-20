@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/services/sync_engine.dart';
 
 // Mock model for UI
 class OutboxItem {
@@ -10,7 +9,13 @@ class OutboxItem {
   final String? lastError;
   final int attemptCount;
 
-  OutboxItem(this.clientUuid, this.entityType, this.status, this.lastError, this.attemptCount);
+  OutboxItem(
+    this.clientUuid,
+    this.entityType,
+    this.status,
+    this.lastError,
+    this.attemptCount,
+  );
 }
 
 class SyncCentreScreen extends ConsumerWidget {
@@ -22,7 +27,13 @@ class SyncCentreScreen extends ConsumerWidget {
     final List<OutboxItem> mockQueue = [
       OutboxItem('uuid-1', 'Survey', 'Queued', null, 0),
       OutboxItem('uuid-2', 'Photo', 'Uploading (3/5)', null, 1),
-      OutboxItem('uuid-3', 'Survey', 'Failed', 'Timeout connecting to server', 5),
+      OutboxItem(
+        'uuid-3',
+        'Survey',
+        'Failed',
+        'Timeout connecting to server',
+        5,
+      ),
       OutboxItem('uuid-4', 'Survey', 'Conflict', 'DUPLICATE_SURVEY', 1),
     ];
 
@@ -35,10 +46,10 @@ class SyncCentreScreen extends ConsumerWidget {
             onPressed: () {
               // Trigger sync engine manually
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Manual sync started...'))
+                const SnackBar(content: Text('Manual sync started...')),
               );
             },
-          )
+          ),
         ],
       ),
       body: ListView.builder(
@@ -55,10 +66,13 @@ class SyncCentreScreen extends ConsumerWidget {
                 children: [
                   Text('Status: ${item.status}'),
                   if (item.lastError != null)
-                    Text('Error: ${item.lastError}', style: const TextStyle(color: Colors.red)),
+                    Text(
+                      'Error: ${item.lastError}',
+                      style: const TextStyle(color: Colors.red),
+                    ),
                 ],
               ),
-              trailing: item.status == 'Failed' || item.status == 'Conflict' 
+              trailing: item.status == 'Failed' || item.status == 'Conflict'
                   ? IconButton(
                       icon: const Icon(Icons.warning, color: Colors.orange),
                       onPressed: () => _showErrorDialog(context, item),
@@ -72,10 +86,13 @@ class SyncCentreScreen extends ConsumerWidget {
   }
 
   Icon _getIconForStatus(String status) {
-    if (status == 'Queued') return const Icon(Icons.schedule, color: Colors.blue);
-    if (status.contains('Uploading')) return const Icon(Icons.cloud_upload, color: Colors.blue);
+    if (status == 'Queued')
+      return const Icon(Icons.schedule, color: Colors.blue);
+    if (status.contains('Uploading'))
+      return const Icon(Icons.cloud_upload, color: Colors.blue);
     if (status == 'Failed') return const Icon(Icons.error, color: Colors.red);
-    if (status == 'Conflict') return const Icon(Icons.rule, color: Colors.orange);
+    if (status == 'Conflict')
+      return const Icon(Icons.rule, color: Colors.orange);
     return const Icon(Icons.check, color: Colors.green);
   }
 
@@ -84,9 +101,11 @@ class SyncCentreScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Action Required'),
-        content: Text(item.status == 'Conflict' 
-            ? 'This survey was already submitted by another device. Discard?' 
-            : 'Failed to sync after ${item.attemptCount} attempts. Error: ${item.lastError}'),
+        content: Text(
+          item.status == 'Conflict'
+              ? 'This survey was already submitted by another device. Discard?'
+              : 'Failed to sync after ${item.attemptCount} attempts. Error: ${item.lastError}',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -98,7 +117,7 @@ class SyncCentreScreen extends ConsumerWidget {
               // Action: Discard or Retry
             },
             child: Text(item.status == 'Conflict' ? 'Discard' : 'Retry Now'),
-          )
+          ),
         ],
       ),
     );

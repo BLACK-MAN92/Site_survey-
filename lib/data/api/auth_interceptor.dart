@@ -90,6 +90,16 @@ class AuthInterceptor extends Interceptor {
     try {
       final opts = err.requestOptions;
       opts.headers['Authorization'] = 'Bearer $newAccessToken';
+
+      // A FormData body is a one-shot stream: it was consumed by the attempt
+      // that got the 401, so replaying it verbatim would upload an empty body.
+      // Photo uploads are the long requests most likely to straddle an access
+      // token expiring, which is exactly when this path runs.
+      final data = opts.data;
+      if (data is FormData) {
+        opts.data = data.clone();
+      }
+
       final response = await _dio.fetch(opts);
       return handler.resolve(response);
     } on DioException catch (retryErr) {

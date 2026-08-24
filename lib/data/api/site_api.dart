@@ -70,4 +70,18 @@ class SiteApi {
       throw _describe(e, 'this site');
     }
   }
+
+  /// Pre- and post-survey side by side for one site.
+  ///
+  /// The post-survey screen needs this: its work-item list is whatever the
+  /// approved pre-survey scoped, which lives on the server and not necessarily
+  /// on the device that is doing the post-survey.
+  Future<Map<String, dynamic>> getConsolidated(String id) async {
+    try {
+      final response = await _dio.get('/sites/$id/consolidated');
+      return Map<String, dynamic>.from(response.data['data'] ?? {});
+    } catch (e) {
+      throw _describe(e, 'the survey history for this site');
+    }
+  }
 }

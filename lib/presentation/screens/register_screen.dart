@@ -99,10 +99,25 @@ class RegisterScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               if (registerState.error != null)
-                Text(
-                  registerState.error!,
-                  style: const TextStyle(color: Colors.red),
-                  textAlign: TextAlign.center,
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          registerState.error!.replaceAll('Exception: ', ''),
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               const SizedBox(height: 24),
               TextButton(

@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
+import '../../data/api/auth_api.dart';
+import '../../data/api/auth_storage.dart';
 
 class AuthState {
   final bool isLoggedIn;
@@ -29,46 +32,63 @@ class AuthState {
 }
 
 class LoginStateNotifier extends StateNotifier<AuthState> {
-  LoginStateNotifier() : super(AuthState());
+  final AuthApi _authApi;
+  final AuthStorage _authStorage;
+  final void Function(String) _onLoginSuccess;
+
+  LoginStateNotifier(this._authApi, this._authStorage, this._onLoginSuccess) : super(AuthState());
 
   Future<void> login(String email, String password) async {
+    debugPrint('📱 FLUTTER: Attempting to login with email: $email');
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // TODO: Call API to login
-      // For now, mock success
-      await Future.delayed(const Duration(seconds: 1));
-      state = state.copyWith(
-        isLoggedIn: true,
-        isLoading: false,
-        accessToken: 'mock_token',
+      final result = await _authApi.login(email, password);
+      
+      debugPrint('📱 FLUTTER: Login API call successful! Extracting tokens...');
+      
+      final accessToken = result['accessToken'];
+      final refreshToken = result['refreshToken'];
+      
+      await _authStorage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
       );
+
+      debugPrint('📱 FLUTTER: Tokens securely saved. Logging user in locally...');
+      state = state.copyWith(isLoading: false);
+      _onLoginSuccess(accessToken);
     } catch (e) {
+      debugPrint('📱 FLUTTER: Login failed with error: $e');
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
       );
     }
-  }
-
-  Future<void> logout() async {
-    state = state.copyWith(isLoggedIn: false, accessToken: null);
   }
 }
 
 class RegisterStateNotifier extends StateNotifier<AuthState> {
-  RegisterStateNotifier() : super(AuthState());
+  final AuthApi _authApi;
+  final AuthStorage _authStorage;
+  final void Function(String) _onRegisterSuccess;
+
+  RegisterStateNotifier(this._authApi, this._authStorage, this._onRegisterSuccess) : super(AuthState());
 
   Future<void> register(String name, String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // TODO: Call API to register
-      // For now, mock success
-      await Future.delayed(const Duration(seconds: 1));
-      state = state.copyWith(
-        isLoggedIn: true,
-        isLoading: false,
-        accessToken: 'mock_token',
+      final result = await _authApi.register(name, email, password);
+      
+      final accessToken = result['accessToken'];
+      final refreshToken = result['refreshToken'];
+      
+      await _authStorage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
       );
+
+      state = state.copyWith(isLoading: false);
+      _onRegisterSuccess(accessToken);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -78,21 +98,32 @@ class RegisterStateNotifier extends StateNotifier<AuthState> {
   }
 }
 
+// Overall auth state that combines login/register
+final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
+  final authStorage = ref.watch(authStorageProvider);
+  return AuthStateNotifier(authStorage);
+});
+
 final loginStateProvider = StateNotifierProvider<LoginStateNotifier, AuthState>((ref) {
-  return LoginStateNotifier();
+  final authApi = ref.watch(authApiProvider);
+  final authStorage = ref.watch(authStorageProvider);
+  return LoginStateNotifier(authApi, authStorage, (token) {
+    ref.read(authStateProvider.notifier).setLoggedIn(token);
+  });
 });
 
 final registerStateProvider = StateNotifierProvider<RegisterStateNotifier, AuthState>((ref) {
-  return RegisterStateNotifier();
-});
-
-// Overall auth state that combines login/register
-final authStateProvider = StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
-  return AuthStateNotifier();
+  final authApi = ref.watch(authApiProvider);
+  final authStorage = ref.watch(authStorageProvider);
+  return RegisterStateNotifier(authApi, authStorage, (token) {
+    ref.read(authStateProvider.notifier).setLoggedIn(token);
+  });
 });
 
 class AuthStateNotifier extends StateNotifier<AuthState> {
-  AuthStateNotifier() : super(AuthState()) {
+  final AuthStorage _authStorage;
+
+  AuthStateNotifier(this._authStorage) : super(AuthState()) {
     _checkAuthStatus();
   }
 
@@ -102,8 +133,14 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoggedIn: false);
   }
 
+  void setLoggedIn(String token) {
+    state = state.copyWith(isLoggedIn: true, accessToken: token);
+  }
+
   Future<void> logout() async {
-    // TODO: Clear tokens from secure storage
+    debugPrint('📱 FLUTTER: Logging out and clearing tokens...');
+    await _authStorage.clearTokens();
     state = state.copyWith(isLoggedIn: false, accessToken: null);
+    debugPrint('📱 FLUTTER: Logout complete.');
   }
 }

@@ -1,4 +1,4 @@
-package com.example.site_suvery
+package com.omnicom.sitesurvey
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,6 +1,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Declared here, in the main manifest, because only debug/ and profile/
+         had INTERNET. Release builds do not merge those, so a shared release
+         APK would install correctly and then fail every network call. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <!-- Surveys are geofenced against the site's coordinates. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- Before/after photo evidence. -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+
+    <!-- The device must have a camera and GPS for the survey flow to work,
+         but neither is marked required so the app can still be installed for
+         back-office use on a tablet without them. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <uses-feature android:name="android.hardware.location.gps" android:required="false"/>
+
     <application
-        android:label="site_suvery"
+        android:label="Site Survey"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

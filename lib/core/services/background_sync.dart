@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:dio/dio.dart';
 import 'sync_engine.dart';
@@ -8,7 +9,7 @@ import 'reachability_probe.dart';
 ) // Mandatory if the App is obfuscated or using Flutter 3.1+
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    print("Background Task running: $task");
+    debugPrint("Background Task running: $task");
 
     try {
       final probe = ReachabilityProbe();
@@ -16,12 +17,10 @@ void callbackDispatcher() {
       final syncEngine = SyncEngine(probe, dio);
 
       await syncEngine.runSync();
-      return Future.value(true);
+      return true;
     } catch (err) {
-      print("Background Task failed: $err");
-      return Future.value(
-        false,
-      ); // Indicates failure, might be retried depending on config
+      debugPrint("Background Task failed: $err");
+      return false; // Indicates failure; WorkManager may retry per config.
     }
   });
 }

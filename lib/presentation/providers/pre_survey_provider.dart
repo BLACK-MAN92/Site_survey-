@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 // State model for the Pre-Survey
 class PreSurveyState {
@@ -40,11 +41,15 @@ class PreSurveyState {
 class PreSurveyNotifier extends Notifier<PreSurveyState> {
   @override
   PreSurveyState build() {
-    return PreSurveyState(siteId: '', clientUuid: 'new-uuid'); // Normally generate UUID
+    // The API validates clientUuid with z.string().uuid(), so a placeholder
+    // string is rejected outright. Idempotent replay also depends on this being
+    // a stable, genuinely unique value per submission.
+    return PreSurveyState(siteId: '', clientUuid: const Uuid().v4());
   }
 
-  void initialize(String siteId, String clientUuid) {
-    state = state.copyWith(siteId: siteId, clientUuid: clientUuid);
+  /// [clientUuid] is optional: omit it to mint a fresh one for a new survey.
+  void initialize(String siteId, [String? clientUuid]) {
+    state = state.copyWith(siteId: siteId, clientUuid: clientUuid ?? const Uuid().v4());
   }
 
   void updateHeader(DateTime? date, String comment) {

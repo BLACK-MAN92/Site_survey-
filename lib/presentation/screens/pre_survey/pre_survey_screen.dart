@@ -42,7 +42,7 @@ class _PreSurveyScreenState extends ConsumerState<PreSurveyScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(preSurveyProvider.notifier).initialize(widget.siteId, 'uuid-${DateTime.now().millisecondsSinceEpoch}');
+      ref.read(preSurveyProvider.notifier).initialize(widget.siteId);
     });
   }
 

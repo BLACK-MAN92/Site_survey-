@@ -86,13 +86,16 @@ class SyncCentreScreen extends ConsumerWidget {
   }
 
   Icon _getIconForStatus(String status) {
-    if (status == 'Queued')
+    if (status == 'Queued') {
       return const Icon(Icons.schedule, color: Colors.blue);
-    if (status.contains('Uploading'))
+    }
+    if (status.contains('Uploading')) {
       return const Icon(Icons.cloud_upload, color: Colors.blue);
+    }
     if (status == 'Failed') return const Icon(Icons.error, color: Colors.red);
-    if (status == 'Conflict')
+    if (status == 'Conflict') {
       return const Icon(Icons.rule, color: Colors.orange);
+    }
     return const Icon(Icons.check, color: Colors.green);
   }
 

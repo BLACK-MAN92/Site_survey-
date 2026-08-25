@@ -35,7 +35,10 @@ String postSurveyBlockedReason(dynamic site) {
 }
 
 String siteSubtitle(dynamic site) {
-  final parts = [site['state'], site['lga']].where((p) => p != null && p != '').toList();
+  final parts = [
+    site['state'],
+    site['lga'],
+  ].where((p) => p != null && p != '').toList();
   return parts.isEmpty ? (site['name'] ?? '') : parts.join(' • ');
 }
 
@@ -61,7 +64,10 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
         actions: [
           IconButton(
@@ -80,8 +86,12 @@ class HomeScreen extends ConsumerWidget {
       body: sitesAsyncValue.when(
         data: (sites) {
           final prePending = sites.where(isPreDue).toList();
-          final postPending = sites.where((s) => isPostDue(s) && isPostSurveyEligible(s)).toList();
-          final awaitingApproval = sites.where((s) => !isPostSurveyEligible(s) && !isClosed(s)).toList();
+          final postPending = sites
+              .where((s) => isPostDue(s) && isPostSurveyEligible(s))
+              .toList();
+          final awaitingApproval = sites
+              .where((s) => !isPostSurveyEligible(s) && !isClosed(s))
+              .toList();
           final completed = sites.where(isClosed).toList();
 
           if (sites.isEmpty) {
@@ -95,21 +105,32 @@ class HomeScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(16.0),
               children: [
-                _buildSummaryCards(prePending.length, postPending.length, completed.length),
+                _buildSummaryCards(
+                  prePending.length,
+                  postPending.length,
+                  completed.length,
+                ),
                 const SizedBox(height: 24),
-                _buildSectionHeader('Ready for Pre-Survey', Icons.assignment_outlined),
-                ...prePending.map((s) => _SiteCard(site: s)).toList(),
-                if (prePending.isEmpty) _buildEmptyState('No sites pending pre-survey.'),
-                
+                _buildSectionHeader(
+                  'Ready for Pre-Survey',
+                  Icons.assignment_outlined,
+                ),
+                ...prePending.map((s) => _SiteCard(site: s)),
+                if (prePending.isEmpty)
+                  _buildEmptyState('No sites pending pre-survey.'),
+
                 const SizedBox(height: 24),
-                _buildSectionHeader('Ready for Post-Survey', Icons.check_circle_outline),
-                ...postPending.map((s) => _SiteCard(site: s)).toList(),
+                _buildSectionHeader(
+                  'Ready for Post-Survey',
+                  Icons.check_circle_outline,
+                ),
+                ...postPending.map((s) => _SiteCard(site: s)),
                 if (postPending.isEmpty)
                   _buildEmptyState(
                     awaitingApproval.isEmpty
                         ? 'No sites pending post-survey.'
                         : 'No sites are open for post-survey yet. '
-                            '${awaitingApproval.length} site(s) are waiting on pre-survey approval.',
+                              '${awaitingApproval.length} site(s) are waiting on pre-survey approval.',
                   ),
                 const SizedBox(height: 80), // Padding for FAB
               ],
@@ -142,7 +163,7 @@ class HomeScreen extends ConsumerWidget {
                   ElevatedButton(
                     onPressed: () => ref.invalidate(assignedSitesProvider),
                     child: const Text('Retry'),
-                  )
+                  ),
                 ],
               ),
             ),
@@ -151,7 +172,8 @@ class HomeScreen extends ConsumerWidget {
       ),
       floatingActionButton: sitesAsyncValue.hasValue
           ? FloatingActionButton.extended(
-              onPressed: () => _showSurveyModal(context, sitesAsyncValue.value ?? []),
+              onPressed: () =>
+                  _showSurveyModal(context, sitesAsyncValue.value ?? []),
               icon: const Icon(Icons.add_task),
               label: const Text('Start Survey'),
               backgroundColor: const Color(0xff0D47A1),
@@ -163,11 +185,29 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildSummaryCards(int pre, int post, int completed) {
     return Row(
       children: [
-        Expanded(child: _SummaryCard(title: 'Pre-Survey', count: pre, color: Colors.blue)),
+        Expanded(
+          child: _SummaryCard(
+            title: 'Pre-Survey',
+            count: pre,
+            color: Colors.blue,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _SummaryCard(title: 'Post-Survey', count: post, color: Colors.orange)),
+        Expanded(
+          child: _SummaryCard(
+            title: 'Post-Survey',
+            count: post,
+            color: Colors.orange,
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _SummaryCard(title: 'Completed', count: completed, color: Colors.green)),
+        Expanded(
+          child: _SummaryCard(
+            title: 'Completed',
+            count: completed,
+            color: Colors.green,
+          ),
+        ),
       ],
     );
   }
@@ -222,7 +262,10 @@ class HomeScreen extends ConsumerWidget {
   Widget _buildEmptyState(String message) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16.0),
-      child: Text(message, style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic)),
+      child: Text(
+        message,
+        style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
+      ),
     );
   }
 }
@@ -232,7 +275,11 @@ class _SummaryCard extends StatelessWidget {
   final int count;
   final MaterialColor color;
 
-  const _SummaryCard({required this.title, required this.count, required this.color});
+  const _SummaryCard({
+    required this.title,
+    required this.count,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -247,7 +294,11 @@ class _SummaryCard extends StatelessWidget {
         children: [
           Text(
             count.toString(),
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color.shade700),
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color.shade700,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
@@ -273,12 +324,19 @@ class _SiteCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: const Color(0xff0D47A1).withOpacity(0.1),
+          backgroundColor: const Color(0xff0D47A1).withValues(alpha: 0.1),
           child: const Icon(Icons.cell_tower, color: Color(0xff0D47A1)),
         ),
-        title: Text(site['siteId'] ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          site['siteId'] ?? 'Unknown',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         subtitle: Text(siteSubtitle(site)),
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: Colors.grey,
+        ),
         onTap: () {
           // Routes use the database id; siteId is the I.H.S business code and
           // is not what GET /sites/:id accepts.
@@ -303,8 +361,9 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final anyPostSurveyReady =
-        widget.sites.any((s) => isPostDue(s) && isPostSurveyEligible(s));
+    final anyPostSurveyReady = widget.sites.any(
+      (s) => isPostDue(s) && isPostSurveyEligible(s),
+    );
 
     // Falling back protects against the segment being selected before a
     // refresh removed the last eligible site.
@@ -312,8 +371,9 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
       _surveyType = 'pre';
     }
 
-    final blockedSites =
-        widget.sites.where((s) => !isPostSurveyEligible(s) && !isClosed(s)).toList();
+    final blockedSites = widget.sites
+        .where((s) => !isPostSurveyEligible(s) && !isClosed(s))
+        .toList();
 
     // Filter sites based on selected survey type
     final availableSites = widget.sites.where((s) {
@@ -323,7 +383,8 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
     }).toList();
 
     // Reset selected site if it's no longer in the available list
-    if (_selectedSiteId != null && !availableSites.any((s) => s['id'] == _selectedSiteId)) {
+    if (_selectedSiteId != null &&
+        !availableSites.any((s) => s['id'] == _selectedSiteId)) {
       _selectedSiteId = null;
     }
 
@@ -343,7 +404,10 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
-          const Text('Survey Type', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text(
+            'Survey Type',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           SegmentedButton<String>(
             segments: [
@@ -387,20 +451,27 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
             ),
           ],
           const SizedBox(height: 24),
-          const Text('Select Site', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text(
+            'Select Site',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
             decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               filled: true,
               fillColor: Colors.grey[50],
             ),
             hint: const Text('Choose a site ID'),
-            value: _selectedSiteId,
+            initialValue: _selectedSiteId,
             items: availableSites.map((site) {
               return DropdownMenuItem<String>(
                 value: site['id'],
-                child: Text('${site['siteId']} - ${site['state'] ?? 'Unknown state'}'),
+                child: Text(
+                  '${site['siteId']} - ${site['state'] ?? 'Unknown state'}',
+                ),
               );
             }).toList(),
             onChanged: (value) {
@@ -416,7 +487,9 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xff0D47A1),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               onPressed: _selectedSiteId == null
                   ? null
@@ -428,7 +501,10 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
                         context.push('/site/$_selectedSiteId/post-survey');
                       }
                     },
-              child: const Text('Proceed to Survey', style: TextStyle(fontSize: 16)),
+              child: const Text(
+                'Proceed to Survey',
+                style: TextStyle(fontSize: 16),
+              ),
             ),
           ),
           const SizedBox(height: 24),

@@ -49,6 +49,9 @@ dependencies:
   flutter_image_compress: ^2.5.1
   image: ^4.1.7
   intl: ^0.19.0
+  # Explicit because photo uploads set an image/jpeg content type on the
+  # multipart part; it would otherwise be an undeclared transitive dio dep.
+  http_parser: ^4.1.2
   workmanager: ^0.10.9
   firebase_core: ^3.1.1
   firebase_crashlytics: ^4.0.1

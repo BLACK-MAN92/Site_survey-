@@ -1,36 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// Represents the state for a single work item
-class WorkItemState {
-  final String key;
-  final bool isRequired;
-  final String? progress; // 'WIP' or 'Closed'
-  final bool isUnplanned;
-  final int? qtyReplaced;
-
-  WorkItemState({
-    required this.key,
-    required this.isRequired,
-    this.progress,
-    this.isUnplanned = false,
-    this.qtyReplaced,
-  });
-
-  WorkItemState copyWith({
-    String? progress,
-    bool? isUnplanned,
-    int? qtyReplaced,
-  }) {
-    return WorkItemState(
-      key: key,
-      isRequired: isRequired,
-      progress: progress ?? this.progress,
-      isUnplanned: isUnplanned ?? this.isUnplanned,
-      qtyReplaced: qtyReplaced ?? this.qtyReplaced,
-    );
-  }
-}
+import '../../providers/post_survey_provider.dart';
+import '../../providers/pre_survey_provider.dart'
+    show
+        OutOfFenceReasonRequired,
+        kMinimumPhotos,
+        kMaximumPhotos,
+        kWorkItemLabels,
+        preSurveyProvider;
+import '../camera/camera_overlay_screen.dart';
+import '../shared/out_of_fence_dialog.dart';
+import '../../providers/site_provider.dart';
+import '../shared/photo_grid.dart';
 
 class PostSurveyScreen extends ConsumerStatefulWidget {
   final String siteId;
@@ -48,95 +30,144 @@ class PostSurveyScreen extends ConsumerStatefulWidget {
 
 class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
   int _currentStep = 0;
-  final List<WorkItemState> _items = [];
-
-  final Map<String, String> _labels = {
-    'janitorial': 'Janitorial',
-    'granite': 'Granite',
-    'concrete_resurfacing': 'Concrete Resurfacing',
-    'palisade_gate': 'Palisade & Gate',
-    'razor_coil': 'Razor Coil',
-    'awl': 'AWL',
-    'security_light': 'Security Light',
-    'tank_painting': 'Tank Painting',
-    'sg_house_repair': 'SG House Repair',
-    'fire_extinguisher': 'Fire Extinguisher',
-    'shelter_repair': 'Shelter Repair',
-    'cable_management': 'Cable Management',
-    'waste_disposal': 'Waste Disposal',
-  };
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    // Initialize items based on pre-survey scope
-    widget.preSurveyScope.forEach((key, isRequired) {
-      _items.add(WorkItemState(key: key, isRequired: isRequired));
-    });
-  }
-
-  void _updateProgress(String key, String status) {
-    setState(() {
-      final idx = _items.indexWhere((i) => i.key == key);
-      if (idx != -1) {
-        _items[idx] = _items[idx].copyWith(progress: status);
-      }
-    });
-  }
-
-  void _addUnplannedItem(String key) {
-    setState(() {
-      final idx = _items.indexWhere((i) => i.key == key);
-      if (idx != -1) {
-        _items[idx] = _items[idx].copyWith(isUnplanned: true, progress: 'WIP');
-      }
-    });
-  }
-
-  // Enforces Rule R-2: Overall status is Closed ONLY if all required items are Closed
-  String _calculateOverallStatus() {
-    bool allClosed = true;
-    for (final item in _items) {
-      if ((item.isRequired || item.isUnplanned) && item.progress != 'Closed') {
-        allClosed = false;
-        break;
-      }
+    if (widget.preSurveyScope.isNotEmpty) {
+      _initialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ref
+            .read(postSurveyProvider.notifier)
+            .initialize(widget.siteId, widget.preSurveyScope);
+      });
     }
-    return allClosed ? 'Closed' : 'WIP';
+  }
+
+  /// Opens the camera with the matching before-photo ghosted over the preview,
+  /// so the after-shot is framed from the same angle.
+  Future<void> _openCamera() async {
+    final state = ref.read(postSurveyProvider);
+    if (state.photos.length >= kMaximumPhotos) {
+      _toast('Maximum of $kMaximumPhotos photos reached.');
+      return;
+    }
+
+    final path = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => CameraOverlayScreen(
+          beforePhotoPath: _beforePhotoFor(state.photos.length),
+          title: 'After photo ${state.photos.length + 1} '
+              'of at least $kMinimumPhotos',
+        ),
+      ),
+    );
+
+    if (path == null || !mounted) return;
+    ref.read(postSurveyProvider.notifier).addPhoto(path);
+  }
+
+  /// The before-photo to ghost, matched by position.
+  ///
+  /// Returns null when the pre-survey photos are not on this device — a
+  /// post-survey can legitimately be done by a different engineer, and the
+  /// overlay is an aid, not a requirement.
+  String? _beforePhotoFor(int index) {
+    final pre = ref.read(preSurveyProvider);
+    if (pre.siteId != widget.siteId || index >= pre.photos.length) return null;
+    return pre.photos[index].localPath;
+  }
+
+  void _toast(String message, {bool error = false}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: error ? Colors.red.shade700 : null,
+        duration: Duration(seconds: error ? 6 : 3),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    // The scope is normally handed in by the caller. When it is not — the site
+    // detail screen pushes straight to this route — it is fetched from the
+    // site's consolidated view, because a post-survey with no work items to
+    // report on is unusable.
+    if (!_initialized) {
+      return _buildScopeLoader();
+    }
+
+    final state = ref.watch(postSurveyProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Post-Survey')),
       body: Stepper(
         type: StepperType.vertical,
         currentStep: _currentStep,
         onStepContinue: () {
-          if (_currentStep < 2) setState(() => _currentStep++);
+          if (_currentStep < 2) {
+            setState(() => _currentStep++);
+          } else {
+            _submit();
+          }
         },
         onStepCancel: () {
           if (_currentStep > 0) setState(() => _currentStep--);
         },
-        steps: [_buildWorkItemsStep(), _buildPhotosStep(), _buildReviewStep()],
+        controlsBuilder: (context, details) {
+          final isLast = _currentStep == 2;
+          return Padding(
+            padding: const EdgeInsets.only(top: 16),
+            child: Row(
+              children: [
+                ElevatedButton(
+                  onPressed: state.submitting ? null : details.onStepContinue,
+                  child: state.submitting
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(isLast ? 'Submit Survey' : 'Continue'),
+                ),
+                if (_currentStep > 0)
+                  TextButton(
+                    onPressed: state.submitting ? null : details.onStepCancel,
+                    child: const Text('Back'),
+                  ),
+              ],
+            ),
+          );
+        },
+        steps: [
+          _buildWorkItemsStep(state),
+          _buildPhotosStep(state),
+          _buildReviewStep(state),
+        ],
       ),
     );
   }
 
-  Step _buildWorkItemsStep() {
+  Step _buildWorkItemsStep(PostSurveyState state) {
+    final notifier = ref.read(postSurveyProvider.notifier);
+
     return Step(
       title: const Text('Work Progress'),
       isActive: _currentStep >= 0,
       content: Column(
-        children: _items.map((item) {
-          if (!item.isRequired && !item.isUnplanned) {
-            // Render collapsed read-only UI for not-required items
+        children: state.items.map((item) {
+          final label = kWorkItemLabels[item.key] ?? item.key;
+
+          if (!item.isInScope) {
             return ExpansionTile(
-              title: Text(_labels[item.key]!),
+              title: Text(label),
               subtitle: const Text('Not Required at Pre-Survey'),
               children: [
                 TextButton(
-                  onPressed: () => _addUnplannedItem(item.key),
+                  onPressed: () => notifier.addUnplanned(item.key),
                   child: const Text('Add as Unplanned Work'),
                 ),
               ],
@@ -144,40 +175,62 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
           }
 
           return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _labels[item.key]!,
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(label,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      if (item.isUnplanned)
+                        const Chip(
+                          label: Text('Unplanned',
+                              style: TextStyle(fontSize: 10)),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                    ],
                   ),
-                  if (item.isUnplanned)
-                    const Text(
-                      'VARIATION (Unplanned)',
-                      style: TextStyle(color: Colors.orange),
-                    ),
+                  const SizedBox(height: 8),
                   SegmentedButton<String>(
                     segments: const [
                       ButtonSegment(value: 'WIP', label: Text('WIP')),
                       ButtonSegment(value: 'Closed', label: Text('Closed')),
                     ],
-                    selected: {item.progress ?? 'WIP'},
-                    onSelectionChanged: (set) =>
-                        _updateProgress(item.key, set.first),
+                    selected: item.progress == null ? {} : {item.progress!},
+                    emptySelectionAllowed: true,
+                    onSelectionChanged: (s) {
+                      if (s.isNotEmpty) {
+                        notifier.setProgress(item.key, s.first);
+                      }
+                    },
                   ),
-                  if (item.key == 'security_light' && item.progress == 'Closed')
-                    TextField(
-                      decoration: const InputDecoration(
-                        labelText: 'Qty Replaced (Required)',
+                  // BR-3: the API refuses a closed security light without a
+                  // replacement count, so it is asked for inline.
+                  if (item.key == 'security_light' &&
+                      item.progress == 'Closed')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: TextFormField(
+                        initialValue: item.qtyReplaced?.toString(),
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Units replaced',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        onChanged: (v) {
+                          final qty = int.tryParse(v);
+                          if (qty != null) {
+                            notifier.setQtyReplaced(item.key, qty);
+                          }
+                        },
                       ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (val) {
-                        final qty = int.tryParse(val);
-                        final idx = _items.indexWhere((i) => i.key == item.key);
-                        _items[idx] = _items[idx].copyWith(qtyReplaced: qty);
-                      },
                     ),
                 ],
               ),
@@ -188,26 +241,45 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
     );
   }
 
-  Step _buildPhotosStep() {
+  Step _buildPhotosStep(PostSurveyState state) {
+    final notifier = ref.read(postSurveyProvider.notifier);
+
     return Step(
       title: const Text('After Photos'),
       isActive: _currentStep >= 1,
-      content: Semantics(
-        button: true,
-        label:
-            'Open camera with before-photo overlay to capture matching angle. Minimum of 5 required.',
-        child: ElevatedButton(
-          onPressed: () {
-            // Navigate to camera with ghost overlay feature
-          },
-          child: const Text('Open Camera with Before-Overlay'),
-        ),
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Captured: ${state.photos.length} / $kMaximumPhotos   •   '
+            'Uploaded: ${state.uploadedCount}',
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 16),
+          Semantics(
+            button: true,
+            label: 'Open camera with before-photo overlay to capture matching '
+                'angle. Minimum of $kMinimumPhotos required.',
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Open Camera with Before-Overlay'),
+              onPressed: _openCamera,
+            ),
+          ),
+          const SizedBox(height: 16),
+          PhotoGrid(
+            photos: state.photos,
+            onRetry: notifier.retryUpload,
+            onRemove: notifier.removePhoto,
+          ),
+        ],
       ),
     );
   }
 
-  Step _buildReviewStep() {
-    final overallStatus = _calculateOverallStatus();
+  Step _buildReviewStep(PostSurveyState state) {
+    final problem = ref.read(postSurveyProvider.notifier).validationError();
+
     return Step(
       title: const Text('Review'),
       isActive: _currentStep >= 2,
@@ -215,17 +287,128 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Derived Overall Status: $overallStatus',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            'Derived Overall Status: ${state.overallStatus}',
+            style:
+                const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          if (overallStatus == 'WIP')
+          if (state.overallStatus == 'WIP')
             const Text(
-              'Note: Status coerced to WIP because not all required items are Closed.',
+              'Note: Status is WIP because not all in-scope items are Closed.',
               style: TextStyle(color: Colors.red),
+            ),
+          const SizedBox(height: 8),
+          Text('Photos: ${state.uploadedCount} uploaded of '
+              '${state.photos.length} taken'),
+          if (problem != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: Colors.red, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(problem,
+                        style: const TextStyle(color: Colors.red)),
+                  ),
+                ],
+              ),
+            ),
+          if (state.error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Text(state.error!,
+                  style: const TextStyle(color: Colors.red)),
             ),
         ],
       ),
     );
+  }
+
+  Widget _buildScopeLoader() {
+    final scope = ref.watch(preSurveyScopeProvider(widget.siteId));
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Post-Survey')),
+      body: scope.when(
+        loading: () => const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading the pre-survey scope…'),
+            ],
+          ),
+        ),
+        error: (error, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.cloud_off, size: 48, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text('$error', textAlign: TextAlign.center),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () =>
+                      ref.invalidate(preSurveyScopeProvider(widget.siteId)),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        data: (items) {
+          if (items.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32),
+                child: Text(
+                  'No approved pre-survey was found for this site, so there '
+                  'is nothing to report a post-survey against.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+
+          // Adopting the fetched scope is a state change, so it is deferred out
+          // of the build pass rather than done inline.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || _initialized) return;
+            ref
+                .read(postSurveyProvider.notifier)
+                .initialize(widget.siteId, items);
+            setState(() => _initialized = true);
+          });
+
+          return const Center(child: CircularProgressIndicator());
+        },
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    final notifier = ref.read(postSurveyProvider.notifier);
+
+    try {
+      final id = await notifier.submit();
+      if (!mounted) return;
+      _toast('Post-survey submitted. Reference $id');
+      Navigator.of(context).pop();
+    } on OutOfFenceReasonRequired catch (e) {
+      if (!mounted) return;
+      final reason = await showOutOfFenceDialog(context, e.message);
+      if (reason == null || !mounted) return;
+      notifier.setOutOfFenceReason(reason);
+      await _submit();
+    } catch (e) {
+      if (!mounted) return;
+      _toast(e.toString(), error: true);
+    }
   }
 }

@@ -128,8 +128,10 @@ class HomeScreen extends ConsumerWidget {
           // A site that came back for rework is waiting on the engineer, not on
           // a reviewer, so it is counted under rework rather than here.
           final awaitingApproval = sites
-              .where((s) =>
-                  !isPostSurveyEligible(s) && !isClosed(s) && !needsRework(s))
+              .where(
+                (s) =>
+                    !isPostSurveyEligible(s) && !isClosed(s) && !needsRework(s),
+              )
               .toList();
           final completed = sites.where(isClosed).toList();
 
@@ -153,10 +155,7 @@ class HomeScreen extends ConsumerWidget {
                 // cannot close without.
                 if (rework.isNotEmpty) ...[
                   const SizedBox(height: 24),
-                  _buildSectionHeader(
-                    'Needs Rework',
-                    Icons.replay_outlined,
-                  ),
+                  _buildSectionHeader('Needs Rework', Icons.replay_outlined),
                   ...rework.map((s) => _SiteCard(site: s)),
                 ],
                 const SizedBox(height: 24),
@@ -225,7 +224,7 @@ class HomeScreen extends ConsumerWidget {
                   _showSurveyModal(context, sitesAsyncValue.value ?? []),
               icon: const Icon(Icons.add_task),
               label: const Text('Start Survey'),
-              backgroundColor: const Color(0xff0D47A1),
+              backgroundColor: Colors.white, //(0xff0D47A1),
             )
           : null,
     );
@@ -452,8 +451,9 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
     }
 
     final blockedSites = widget.sites
-        .where((s) =>
-            !isPostSurveyEligible(s) && !isClosed(s) && !needsRework(s))
+        .where(
+          (s) => !isPostSurveyEligible(s) && !isClosed(s) && !needsRework(s),
+        )
         .toList();
 
     // Filter sites based on selected survey type. Sites sent back for rework

@@ -89,4 +89,66 @@ void main() {
       expect(isPostSurveyEligible(approved), isTrue);
     });
   });
+
+  group('rework', () {
+    /// A site the back office sent back: its cycleState leaves pre_due, which
+    /// is exactly why it needs its own filter to stay visible.
+    Map<String, dynamic> rejectedPre() => {
+          ...sites[0] as Map<String, dynamic>,
+          'cycleState': 'rework',
+          'preSurveyState': 'rejected_backoffice',
+          'postSurveyEligible': false,
+          'needsRework': true,
+          'reworkSurveyType': 'pre',
+          'reworkReason': 'photos_unusable',
+        };
+
+    Map<String, dynamic> rejectedPost() => {
+          ...sites[0] as Map<String, dynamic>,
+          'cycleState': 'rework',
+          'preSurveyState': 'approved_internal',
+          'postSurveyEligible': true,
+          'needsRework': true,
+          'reworkSurveyType': 'post',
+          'reworkReason': 'workmanship',
+        };
+
+    test('a rejected site falls out of every stage filter', () {
+      final site = rejectedPre();
+      expect(isPreDue(site), isFalse);
+      expect(isPostDue(site), isFalse);
+      expect(isClosed(site), isFalse);
+      // Which is the bug: without needsRework it would show nowhere at all.
+      expect(needsRework(site), isTrue);
+    });
+
+    test('separates a pre rework from a post rework', () {
+      expect(needsPreRework(rejectedPre()), isTrue);
+      expect(needsPostRework(rejectedPre()), isFalse);
+      expect(needsPostRework(rejectedPost()), isTrue);
+      expect(needsPreRework(rejectedPost()), isFalse);
+    });
+
+    test('a healthy site is never treated as rework', () {
+      for (final site in sites) {
+        expect(needsRework(site), isFalse);
+        expect(needsPreRework(site), isFalse);
+        expect(needsPostRework(site), isFalse);
+      }
+    });
+
+    test('turns the reviewer reason code into something actionable', () {
+      expect(reworkReasonLabel(rejectedPre()),
+          'The photos could not be used — retake them.');
+      expect(reworkReasonLabel(rejectedPost()),
+          'The workmanship was not accepted.');
+    });
+
+    test('falls back to a usable sentence for an unrecorded reason', () {
+      final noReason = {...rejectedPre()}..remove('reworkReason');
+      expect(reworkReasonLabel(noReason), isNotEmpty);
+      expect(reworkReasonLabel({...rejectedPre(), 'reworkReason': 'unheard_of'}),
+          isNotEmpty);
+    });
+  });
 }

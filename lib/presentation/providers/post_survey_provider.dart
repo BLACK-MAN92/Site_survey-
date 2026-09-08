@@ -60,7 +60,12 @@ class PostWorkItem {
 }
 
 class PostSurveyState {
+  /// MongoDB ObjectId — used for API calls.
   final String siteId;
+
+  /// IHS business code, e.g. NG-LAG-001 — burnt into the photo watermark.
+  final String ihsSiteId;
+
   final String clientUuid;
   final List<PostWorkItem> items;
   final List<CapturedPhoto> photos;
@@ -72,6 +77,7 @@ class PostSurveyState {
 
   PostSurveyState({
     required this.siteId,
+    required this.ihsSiteId,
     required this.clientUuid,
     this.items = const [],
     this.photos = const [],
@@ -96,6 +102,7 @@ class PostSurveyState {
   }
 
   PostSurveyState copyWith({
+    String? ihsSiteId,
     List<PostWorkItem>? items,
     List<CapturedPhoto>? photos,
     DateTime? actualCleanupDate,
@@ -107,6 +114,7 @@ class PostSurveyState {
   }) {
     return PostSurveyState(
       siteId: siteId,
+      ihsSiteId: ihsSiteId ?? this.ihsSiteId,
       clientUuid: clientUuid,
       items: items ?? this.items,
       photos: photos ?? this.photos,
@@ -125,11 +133,12 @@ class PostSurveyNotifier extends Notifier<PostSurveyState> {
 
   @override
   PostSurveyState build() =>
-      PostSurveyState(siteId: '', clientUuid: const Uuid().v4());
+      PostSurveyState(siteId: '', ihsSiteId: '', clientUuid: const Uuid().v4());
 
-  void initialize(String siteId, Map<String, bool> preSurveyScope) {
+  void initialize(String siteId, String ihsSiteId, Map<String, bool> preSurveyScope) {
     state = PostSurveyState(
       siteId: siteId,
+      ihsSiteId: ihsSiteId,
       clientUuid: const Uuid().v4(),
       items: [
         for (final entry in preSurveyScope.entries)
@@ -215,7 +224,8 @@ class PostSurveyNotifier extends Notifier<PostSurveyState> {
       final fix = state.openFix;
       final prepared = await _imageService.prepareForUpload(
         imagePath: localPath,
-        siteId: state.siteId,
+        // Use the IHS business code (e.g. NG-LAG-001) not the MongoDB id.
+        siteId: state.ihsSiteId.isNotEmpty ? state.ihsSiteId : state.siteId,
         lat: fix?.lat,
         lng: fix?.lng,
       );
@@ -258,7 +268,9 @@ class PostSurveyNotifier extends Notifier<PostSurveyState> {
       'siteId': state.siteId,
       'clientUuid': state.clientUuid,
       'surveyType': 'post',
-      'revision': 1,
+      // No revision: the server assigns it. The device cannot know how many
+      // times a site has been through review, and sending 1 collided with the
+      // survey that had just been rejected, so rework could never be submitted.
       'geo': {
         'openFix': (state.openFix ?? submitFix).toJson(),
         'submitFix': submitFix.toJson(),

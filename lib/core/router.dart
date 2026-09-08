@@ -70,16 +70,28 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'pre-survey',
                 builder: (context, state) {
-                  final siteId = state.pathParameters['id']!;
-                  return PreSurveyScreen(siteId: siteId);
+                  final mongoId = state.pathParameters['id']!;
+                  // The IHS business code is forwarded via extras by
+                  // SiteDetailScreen. Fall back to the mongo id so the
+                  // stamp always has something meaningful.
+                  final extras = state.extra as Map<String, dynamic>? ?? {};
+                  final ihsSiteId = extras['ihsSiteId'] as String? ?? mongoId;
+                  return PreSurveyScreen(siteId: mongoId, ihsSiteId: ihsSiteId);
                 },
               ),
               GoRoute(
                 path: 'post-survey',
                 builder: (context, state) {
-                  final siteId = state.pathParameters['id']!;
-                  final preSurveyScope = state.extra as Map<String, bool>? ?? {};
-                  return PostSurveyScreen(siteId: siteId, preSurveyScope: preSurveyScope);
+                  final mongoId = state.pathParameters['id']!;
+                  final extras = state.extra as Map<String, dynamic>? ?? {};
+                  final ihsSiteId = extras['ihsSiteId'] as String? ?? mongoId;
+                  final preSurveyScope =
+                      extras['preSurveyScope'] as Map<String, bool>? ?? {};
+                  return PostSurveyScreen(
+                    siteId: mongoId,
+                    ihsSiteId: ihsSiteId,
+                    preSurveyScope: preSurveyScope,
+                  );
                 },
               ),
             ],

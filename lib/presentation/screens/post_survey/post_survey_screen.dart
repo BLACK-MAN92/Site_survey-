@@ -15,12 +15,17 @@ import '../../providers/site_provider.dart';
 import '../shared/photo_grid.dart';
 
 class PostSurveyScreen extends ConsumerStatefulWidget {
+  /// MongoDB _id — used for API calls (route param).
   final String siteId;
   final Map<String, bool> preSurveyScope;
+
+  /// IHS business code, e.g. NG-LAG-001 — shown on the stamp.
+  final String ihsSiteId;
 
   const PostSurveyScreen({
     super.key,
     required this.siteId,
+    required this.ihsSiteId,
     required this.preSurveyScope,
   });
 
@@ -40,7 +45,7 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref
             .read(postSurveyProvider.notifier)
-            .initialize(widget.siteId, widget.preSurveyScope);
+            .initialize(widget.siteId, widget.ihsSiteId, widget.preSurveyScope);
       });
     }
   }
@@ -382,7 +387,7 @@ class _PostSurveyScreenState extends ConsumerState<PostSurveyScreen> {
             if (!mounted || _initialized) return;
             ref
                 .read(postSurveyProvider.notifier)
-                .initialize(widget.siteId, items);
+                .initialize(widget.siteId, widget.ihsSiteId, items);
             setState(() => _initialized = true);
           });
 

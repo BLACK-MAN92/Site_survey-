@@ -45,7 +45,13 @@ class OutOfFenceReasonRequired implements Exception {
 }
 
 class PreSurveyState {
+  /// MongoDB ObjectId — used for API calls (POST /surveys, photo upload).
   final String siteId;
+
+  /// IHS business code, e.g. NG-LAG-001. Burnt into the photo watermark
+  /// so the stamp is human-readable rather than a 24-char hex string.
+  final String ihsSiteId;
+
   final String clientUuid;
   final DateTime? plannedDate;
   final String comment;
@@ -63,6 +69,7 @@ class PreSurveyState {
 
   PreSurveyState({
     required this.siteId,
+    required this.ihsSiteId,
     required this.clientUuid,
     this.plannedDate,
     this.comment = '',
@@ -90,6 +97,7 @@ class PreSurveyState {
 
   PreSurveyState copyWith({
     String? siteId,
+    String? ihsSiteId,
     String? clientUuid,
     DateTime? plannedDate,
     String? comment,
@@ -103,6 +111,7 @@ class PreSurveyState {
   }) {
     return PreSurveyState(
       siteId: siteId ?? this.siteId,
+      ihsSiteId: ihsSiteId ?? this.ihsSiteId,
       clientUuid: clientUuid ?? this.clientUuid,
       plannedDate: plannedDate ?? this.plannedDate,
       comment: comment ?? this.comment,
@@ -125,13 +134,15 @@ class PreSurveyNotifier extends Notifier<PreSurveyState> {
     // The API validates clientUuid with z.string().uuid(), so a placeholder
     // string is rejected outright. Idempotent replay also depends on this being
     // a stable, genuinely unique value per submission.
-    return PreSurveyState(siteId: '', clientUuid: const Uuid().v4());
+    return PreSurveyState(siteId: '', ihsSiteId: '', clientUuid: const Uuid().v4());
   }
 
+  /// [ihsSiteId] is the human-readable IHS business code (e.g. NG-LAG-001).
   /// [clientUuid] is optional: omit it to mint a fresh one for a new survey.
-  void initialize(String siteId, [String? clientUuid]) {
+  void initialize(String siteId, String ihsSiteId, [String? clientUuid]) {
     state = PreSurveyState(
       siteId: siteId,
+      ihsSiteId: ihsSiteId,
       clientUuid: clientUuid ?? const Uuid().v4(),
     );
     _captureOpenFix();
@@ -205,7 +216,8 @@ class PreSurveyNotifier extends Notifier<PreSurveyState> {
       final fix = state.openFix;
       final prepared = await _imageService.prepareForUpload(
         imagePath: localPath,
-        siteId: state.siteId,
+        // Use the IHS business code (e.g. NG-LAG-001) not the MongoDB id.
+        siteId: state.ihsSiteId.isNotEmpty ? state.ihsSiteId : state.siteId,
         lat: fix?.lat,
         lng: fix?.lng,
       );
@@ -263,7 +275,9 @@ class PreSurveyNotifier extends Notifier<PreSurveyState> {
       'siteId': state.siteId,
       'clientUuid': state.clientUuid,
       'surveyType': 'pre',
-      'revision': 1,
+      // No revision: the server assigns it. The device cannot know how many
+      // times a site has been through review, and sending 1 collided with the
+      // survey that had just been rejected, so rework could never be submitted.
       'geo': {
         // Falling back to the submit fix keeps a survey submittable when the
         // opening fix could not be taken; both are still real readings.

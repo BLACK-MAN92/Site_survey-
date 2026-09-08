@@ -142,36 +142,68 @@ class ImageService {
     double? lat,
     double? lng,
   }) {
-    final timestamp = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    final timestamp = DateFormat('dd MMM yyyy  HH:mm:ss').format(DateTime.now());
     final fix = (lat != null && lng != null)
-        ? 'Lat ${lat.toStringAsFixed(5)}, Lng ${lng.toStringAsFixed(5)}'
-        : 'GPS unavailable';
-    final lines = ['Site: $siteId', timestamp, fix];
+        ? 'GPS: ${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'
+        : 'GPS: unavailable';
+    // Three lines: branding header, site + timestamp, GPS.
+    // Each line is rendered separately so font, color and weight can be
+    // tuned per-line without a third-party rich-text library.
+    final lines = [
+      'OMNIC SITE SURVEY — $siteId',
+      timestamp,
+      fix,
+    ];
 
-    const pad = 12;
-    final font = image.width > 1400 ? img.arial24 : img.arial14;
+    // Use the largest built-in bitmap font on big sensors (≥1400 px wide)
+    // and drop one step only for genuinely small captures; arial14 was so
+    // small that the stamp was illegible when the image was displayed at
+    // thumbnail size in a report.
+    const pad = 18;
+    final font = image.width >= 1400 ? img.arial48 : img.arial24;
     final lineHeight = font.lineHeight;
-    final boxHeight = lineHeight * lines.length + pad * 2;
 
-    // Dark plate behind the text: white-on-white is unreadable against a
-    // bright sky or a concrete base, which is most of what gets photographed.
+    // Extra spacing between lines for readability.
+    const lineSpacing = 6;
+    final totalTextHeight =
+        lineHeight * lines.length + lineSpacing * (lines.length - 1);
+    final boxHeight = totalTextHeight + pad * 2;
+
+    // Semi-opaque dark plate — high enough opacity (200/255 ≈ 78 %) so the
+    // white text stays legible on bright concrete or a washed-out sky.
     img.fillRect(
       image,
       x1: 0,
       y1: image.height - boxHeight,
       x2: image.width,
       y2: image.height,
-      color: img.ColorRgba8(0, 0, 0, 140),
+      color: img.ColorRgba8(0, 0, 0, 200),
+    );
+
+    // Top accent line — a thin yellow/amber stripe makes the stamp
+    // unmistakeable as a deliberate watermark rather than a rendering artefact.
+    img.fillRect(
+      image,
+      x1: 0,
+      y1: image.height - boxHeight,
+      x2: image.width,
+      y2: image.height - boxHeight + 4,
+      color: img.ColorRgba8(255, 200, 0, 220),
     );
 
     for (var i = 0; i < lines.length; i++) {
+      // First line (branding) renders in amber; subsequent lines in white.
+      final color = i == 0
+          ? img.ColorRgb8(255, 200, 0)
+          : img.ColorRgb8(255, 255, 255);
+
       img.drawString(
         image,
         lines[i],
         font: font,
         x: pad,
-        y: image.height - boxHeight + pad + (i * lineHeight),
-        color: img.ColorRgb8(255, 255, 255),
+        y: image.height - boxHeight + pad + i * (lineHeight + lineSpacing),
+        color: color,
       );
     }
   }

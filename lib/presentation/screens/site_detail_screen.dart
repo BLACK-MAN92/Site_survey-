@@ -2,7 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/site_provider.dart';
-import 'home_screen.dart' show isPostSurveyEligible, postSurveyBlockedReason;
+import 'home_screen.dart'
+    show
+        isPostSurveyEligible,
+        postSurveyBlockedReason,
+        needsRework,
+        reworkReasonLabel,
+        reworkSurveyType;
 
 class SiteDetailScreen extends ConsumerWidget {
   final String siteId;
@@ -50,6 +56,10 @@ class SiteDetailScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _buildModernInfoCard(site),
+                      if (needsRework(site)) ...[
+                        const SizedBox(height: 16),
+                        _buildReworkBanner(site),
+                      ],
                       const SizedBox(height: 32),
                       const Text(
                         'Actions',
@@ -66,10 +76,14 @@ class SiteDetailScreen extends ConsumerWidget {
                           final pre = _buildActionButton(
                             context, 'Start Pre-Survey', Icons.assignment,
                             '/site/$siteId/pre-survey', const Color(0xff0D47A1),
+                            // Forward the IHS code so the watermark stamp shows
+                            // e.g. NG-LAG-001 rather than a MongoDB hex id.
+                            extra: {'ihsSiteId': site['siteId'] ?? siteId},
                           );
                           final post = _buildActionButton(
                             context, 'Start Post-Survey', Icons.check_circle,
                             '/site/$siteId/post-survey', const Color(0xff388E3C),
+                            extra: {'ihsSiteId': site['siteId'] ?? siteId},
                             enabled: postReady,
                           );
 
@@ -119,6 +133,58 @@ class SiteDetailScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(child: Text('Error: $error')),
+      ),
+    );
+  }
+
+  /// The reviewer's verdict, stated before the action buttons.
+  ///
+  /// Reopening the survey form is the correct response to a rejection, so the
+  /// buttons stay live — this says which one to press and what to fix.
+  Widget _buildReworkBanner(Map<String, dynamic> site) {
+    final isPost = reworkSurveyType(site) == 'post';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.replay, color: Colors.orange.shade800),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${isPost ? 'Post' : 'Pre'}-survey sent back for rework',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  reworkReasonLabel(site),
+                  style: TextStyle(color: Colors.orange.shade900),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Start the ${isPost ? 'post' : 'pre'}-survey again below. '
+                  'Your new submission goes back to the back office for review.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.orange.shade900.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -206,6 +272,7 @@ class SiteDetailScreen extends ConsumerWidget {
     String route,
     Color color, {
     bool enabled = true,
+    Map<String, dynamic>? extra,
   }) {
     return ElevatedButton.icon(
       icon: Icon(enabled ? icon : Icons.lock_outline, size: 24),
@@ -221,7 +288,7 @@ class SiteDetailScreen extends ConsumerWidget {
       ),
       // A null callback is what actually disables the button; greying it out
       // alone would still let the route be pushed.
-      onPressed: enabled ? () => context.push(route) : null,
+      onPressed: enabled ? () => context.push(route, extra: extra) : null,
     );
   }
 }

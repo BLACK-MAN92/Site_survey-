@@ -7,9 +7,13 @@ import '../shared/out_of_fence_dialog.dart';
 import '../shared/photo_grid.dart';
 
 class PreSurveyScreen extends ConsumerStatefulWidget {
+  /// MongoDB _id — used for API calls (route param).
   final String siteId;
 
-  const PreSurveyScreen({super.key, required this.siteId});
+  /// IHS business code, e.g. NG-LAG-001 — shown on the stamp.
+  final String ihsSiteId;
+
+  const PreSurveyScreen({super.key, required this.siteId, required this.ihsSiteId});
 
   @override
   ConsumerState<PreSurveyScreen> createState() => _PreSurveyScreenState();
@@ -23,7 +27,7 @@ class _PreSurveyScreenState extends ConsumerState<PreSurveyScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(preSurveyProvider.notifier).initialize(widget.siteId);
+      ref.read(preSurveyProvider.notifier).initialize(widget.siteId, widget.ihsSiteId);
     });
   }
 

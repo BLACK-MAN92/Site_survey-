@@ -16,6 +16,41 @@ bool isClosed(dynamic site) => site['cycleState'] == 'closed';
 /// letting an engineer do the work and fail at submission.
 bool isPostSurveyEligible(dynamic site) => site['postSurveyEligible'] == true;
 
+/// A site whose latest survey was sent back by a reviewer. The engineer is
+/// expected to redo it, so it belongs in a list of their own — a rejected site
+/// leaves `pre_due`/`post_due` for `rework` and would otherwise show nowhere.
+bool needsRework(dynamic site) => site['needsRework'] == true;
+
+/// Which survey has to be redone: 'pre' or 'post'.
+String? reworkSurveyType(dynamic site) => site['reworkSurveyType'] as String?;
+
+bool needsPreRework(dynamic site) =>
+    needsRework(site) && reworkSurveyType(site) == 'pre';
+bool needsPostRework(dynamic site) =>
+    needsRework(site) && reworkSurveyType(site) == 'post';
+
+/// Reviewers pick a reason code; the engineer needs the sentence. Without this
+/// a rejected survey says only that it came back, not what to fix on the way
+/// out to site.
+const Map<String, String> _reworkReasons = {
+  'photos_unusable': 'The photos could not be used — retake them.',
+  'scope_mismatch': 'The scope does not match what was found on site.',
+  'geolocation_flagged': 'The location recorded was queried.',
+  'incomplete_form': 'The form was incomplete.',
+  'wrong_site': 'This looks like the wrong site.',
+  'workmanship': 'The workmanship was not accepted.',
+  'incomplete_scope': 'Some of the scope was not completed.',
+  'photo_evidence_insufficient': 'The photo evidence was not enough.',
+  'wrong_site_or_location': 'The site or location was wrong.',
+  'other': 'See the reviewer comment recorded with the rejection.',
+};
+
+/// What the reviewer said, in words, or a fallback when no reason was recorded.
+String reworkReasonLabel(dynamic site) {
+  final code = site['reworkReason'] as String?;
+  return _reworkReasons[code] ?? 'This survey was sent back for rework.';
+}
+
 /// Human-readable reason a site is not yet open for post-survey.
 String postSurveyBlockedReason(dynamic site) {
   final state = site['preSurveyState'];
@@ -85,12 +120,16 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: sitesAsyncValue.when(
         data: (sites) {
+          final rework = sites.where(needsRework).toList();
           final prePending = sites.where(isPreDue).toList();
           final postPending = sites
               .where((s) => isPostDue(s) && isPostSurveyEligible(s))
               .toList();
+          // A site that came back for rework is waiting on the engineer, not on
+          // a reviewer, so it is counted under rework rather than here.
           final awaitingApproval = sites
-              .where((s) => !isPostSurveyEligible(s) && !isClosed(s))
+              .where((s) =>
+                  !isPostSurveyEligible(s) && !isClosed(s) && !needsRework(s))
               .toList();
           final completed = sites.where(isClosed).toList();
 
@@ -110,6 +149,16 @@ class HomeScreen extends ConsumerWidget {
                   postPending.length,
                   completed.length,
                 ),
+                // Rework leads: it is work already done once that the site
+                // cannot close without.
+                if (rework.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  _buildSectionHeader(
+                    'Needs Rework',
+                    Icons.replay_outlined,
+                  ),
+                  ...rework.map((s) => _SiteCard(site: s)),
+                ],
                 const SizedBox(height: 24),
                 _buildSectionHeader(
                   'Ready for Pre-Survey',
@@ -318,20 +367,49 @@ class _SiteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rework = needsRework(site);
+
     return Card(
       elevation: 1,
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: const Color(0xff0D47A1).withValues(alpha: 0.1),
-          child: const Icon(Icons.cell_tower, color: Color(0xff0D47A1)),
+          backgroundColor: rework
+              ? Colors.orange.withValues(alpha: 0.15)
+              : const Color(0xff0D47A1).withValues(alpha: 0.1),
+          child: Icon(
+            rework ? Icons.replay : Icons.cell_tower,
+            color: rework ? Colors.orange.shade800 : const Color(0xff0D47A1),
+          ),
         ),
         title: Text(
           site['siteId'] ?? 'Unknown',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        subtitle: Text(siteSubtitle(site)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(siteSubtitle(site)),
+            // The reason travels with the card so the engineer knows what to
+            // fix before driving out, not after opening the form.
+            if (rework)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0),
+                child: Text(
+                  '${reworkSurveyType(site) == 'post' ? 'Post' : 'Pre'}-survey '
+                  'sent back. ${reworkReasonLabel(site)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.orange.shade900,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        isThreeLine: rework,
         trailing: const Icon(
           Icons.arrow_forward_ios,
           size: 16,
@@ -361,8 +439,10 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    // A rejected post-survey has to be redoable too, and its site sits in
+    // 'rework' rather than 'post_due'.
     final anyPostSurveyReady = widget.sites.any(
-      (s) => isPostDue(s) && isPostSurveyEligible(s),
+      (s) => (isPostDue(s) && isPostSurveyEligible(s)) || needsPostRework(s),
     );
 
     // Falling back protects against the segment being selected before a
@@ -372,13 +452,19 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
     }
 
     final blockedSites = widget.sites
-        .where((s) => !isPostSurveyEligible(s) && !isClosed(s))
+        .where((s) =>
+            !isPostSurveyEligible(s) && !isClosed(s) && !needsRework(s))
         .toList();
 
-    // Filter sites based on selected survey type
+    // Filter sites based on selected survey type. Sites sent back for rework
+    // are offered alongside the due ones: redoing a rejected survey is the
+    // whole point of the rework state, and leaving them out was what made a
+    // rejected site unreachable from here.
     final availableSites = widget.sites.where((s) {
-      if (_surveyType == 'pre') return isPreDue(s);
-      if (_surveyType == 'post') return isPostDue(s) && isPostSurveyEligible(s);
+      if (_surveyType == 'pre') return isPreDue(s) || needsPreRework(s);
+      if (_surveyType == 'post') {
+        return (isPostDue(s) && isPostSurveyEligible(s)) || needsPostRework(s);
+      }
       return false;
     }).toList();
 
@@ -470,7 +556,8 @@ class _SurveySelectionSheetState extends State<_SurveySelectionSheet> {
               return DropdownMenuItem<String>(
                 value: site['id'],
                 child: Text(
-                  '${site['siteId']} - ${site['state'] ?? 'Unknown state'}',
+                  '${site['siteId']} - ${site['state'] ?? 'Unknown state'}'
+                  '${needsRework(site) ? '  (rework)' : ''}',
                 ),
               );
             }).toList(),

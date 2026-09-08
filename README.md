@@ -26,3 +26,5 @@ flutter run -d chrome
 
 mester@mail.com
 mester1234
+
+C:\Users\HP\Desktop\omnic\site\Site_survey-\build\app\outputs\flutter-apk\app-release.apk

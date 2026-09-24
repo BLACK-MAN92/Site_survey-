@@ -23,6 +23,7 @@ flutter run -d chrome --web-browser-flag=--disable-extensions
 
 flutter run -d chrome
 
+flutter build apk --release
 
 mester@mail.com
 mester1234
